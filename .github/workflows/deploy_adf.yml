@@ -22,53 +22,81 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
     
-    # First, let's check the contents of the ARM template
+    # First, check if the template is using parameters correctly
     - name: Check ARM Template Content
       run: |
         echo "Examining ARM template content..."
-        jq '.resources[].name' ./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json | grep -i factory || echo "No direct factory name found"
+        grep -r "factoryName" ./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json || echo "factoryName not found in template"
     
-    # Create a properly sanitized parameters file for UAT
+    # Create a modified parameters file for UAT without using jq
     - name: Prepare UAT Parameters
       run: |
-        # Install jq if not already available
-        apt-get update && apt-get install -y jq
+        # Create a new parameters file directly
+        echo '{
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "factoryName": {
+              "value": "${{ secrets.ADF_NAME_UAT }}"
+            },
+            "dataFactory_location": {
+              "value": "eastus"
+            },
+            "dataFactory_identity_type": {
+              "value": "SystemAssigned"
+            }
+          }
+        }' > ./UAT_ARMTemplateParameters.json
         
-        # Copy the original parameter file
-        cp ./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateParametersForFactory.json ./UAT_ARMTemplateParameters.json
-        
-        # Sanitize the ADF_NAME_UAT value to ensure it doesn't contain invalid characters
-        UAT_FACTORY_NAME="${{ secrets.ADF_NAME_UAT }}"
-        SANITIZED_NAME=$(echo "$UAT_FACTORY_NAME" | tr -d '%&\\?/')
-        
-        # Use jq to update the factoryName parameter for UAT
-        jq --arg name "$SANITIZED_NAME" '.parameters.factoryName.value = $name' ./UAT_ARMTemplateParameters.json > ./temp.json && mv ./temp.json ./UAT_ARMTemplateParameters.json
-        
-        echo "Modified parameters file for UAT:"
+        echo "Created parameters file for UAT:"
         cat ./UAT_ARMTemplateParameters.json
+        
+        # Verify the UAT factory name is set
+        echo "Checking if UAT factory name is properly set:"
+        echo "UAT factory name: ${{ secrets.ADF_NAME_UAT }}"
 
-    # Try to deploy using global parameters directly, not via parameter file
+    # Deploy using Azure CLI directly for more control
     - name: Deploy ADF ARM Template
-      id: deploy
-      uses: azure/arm-deploy@v1
-      with:
-        scope: "resourcegroup"
-        resourceGroupName: ${{ secrets.ADF_RESOURCE_GROUP }}
-        template: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json"
-        parameters: factoryName="${{ secrets.ADF_NAME_UAT }}" dataFactory_location="eastus" dataFactory_identity_type="SystemAssigned"
-        deploymentName: "ADF-UAT-Deployment-${{ github.run_id }}"
-        deploymentMode: Incremental
-        failOnStdErr: false
+      run: |
+        echo "Starting deployment to UAT..."
+        DEPLOYMENT_NAME="ADF-UAT-Deployment-${{ github.run_id }}"
+        
+        # Deploy using Azure CLI
+        az deployment group create \
+          --name "$DEPLOYMENT_NAME" \
+          --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
+          --template-file "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json" \
+          --parameters factoryName="${{ secrets.ADF_NAME_UAT }}" \
+                       dataFactory_location="eastus" \
+                       dataFactory_identity_type="SystemAssigned" \
+          --verbose
         
     - name: Check Deployment Status
       run: |
         DEPLOYMENT_NAME="ADF-UAT-Deployment-${{ github.run_id }}"
-        DEPLOYMENT_STATUS=$(az deployment group show --name "$DEPLOYMENT_NAME" --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} --query "properties.provisioningState" -o tsv)
+        echo "Checking deployment status for $DEPLOYMENT_NAME..."
+        
+        DEPLOYMENT_STATUS=$(az deployment group show \
+          --name "$DEPLOYMENT_NAME" \
+          --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
+          --query "properties.provisioningState" -o tsv)
         
         echo "Deployment status: $DEPLOYMENT_STATUS"
+        
         if [ "$DEPLOYMENT_STATUS" != "Succeeded" ]; then
-          echo "Deployment failed or had issues. Getting detailed error information..."
-          az deployment operation list --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} --deployment-name "$DEPLOYMENT_NAME" --query "[?properties.provisioningState=='Failed'].{operation: properties.targetResource.resourceType, resourceName: properties.targetResource.resourceName, error: properties.statusMessage}" -o json
+          echo "Deployment failed. Getting error details..."
+          az deployment group show \
+            --name "$DEPLOYMENT_NAME" \
+            --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
+            --query "properties.error" -o json
+          
+          echo "Checking individual operations for more details..."
+          az deployment operation list \
+            --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
+            --deployment-name "$DEPLOYMENT_NAME" \
+            --query "[?properties.provisioningState=='Failed'].{operation: properties.targetResource.resourceType, resourceName: properties.targetResource.resourceName, error: properties.statusMessage}" \
+            -o json
+          
           exit 1
         fi
         
@@ -76,5 +104,10 @@ jobs:
       if: success()
       run: |
         echo "Verifying ADF resources were deployed correctly..."
-        az datafactory pipeline list --factory-name ${{ secrets.ADF_NAME_UAT }} --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} --query "[].name" -o tsv
+        echo "Listing pipelines in UAT factory: ${{ secrets.ADF_NAME_UAT }}"
+        az datafactory pipeline list \
+          --factory-name "${{ secrets.ADF_NAME_UAT }}" \
+          --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
+          --query "[].name" -o tsv
+        
         echo "Deployment to UAT completed successfully."
