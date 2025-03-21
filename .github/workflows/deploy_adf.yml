@@ -1,9 +1,9 @@
-name: Deploy ADF from Dev to UAT
+name: Build and Deploy ADF from Dev to UAT
 
 on:
   push:
     branches:
-      - develop# Trigger deployment when code is pushed to the main branch
+      - develop  # Trigger deployment when code is pushed to the develop branch
 
 jobs:
   deploy-adf:
@@ -12,6 +12,9 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+
+    - name: Set up Azure CLI
+      uses: azure/setup-azurecli@v1
 
     - name: Login to Azure
       uses: azure/login@v1
@@ -24,9 +27,9 @@ jobs:
       uses: azure/arm-deploy@v1
       with:
         scope: "resourcegroup"
-        resource-group: ${{ secrets.ADF_RESOURCE_GROUP }}
-        template: "./adf_publish/ARMTemplateForFactory.json"
-        parameters: "./adf_publish/ARMTemplateParametersForFactory.json"
+        resource-group: ${{ secrets.ADF_RESOURCE_GROUP }}  # Resource group of the UAT ADF instance
+        template: "./adf_publish/ARMTemplateForFactory.json"  # Path to the ARM template in adf_publish
+        parameters: "./adf_publish/ARMTemplateParametersForFactory.json"  # Path to parameters in adf_publish
         additional-parameters: >
-          factoryName=${{ secrets.ADF_NAME_UAT }}
+          factoryName=${{ secrets.ADF_NAME_UAT }}  # UAT ADF instance name
         deployment-mode: Incremental
