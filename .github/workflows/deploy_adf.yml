@@ -3,30 +3,27 @@ on:
   push:
     branches:
       - develop
+  workflow_dispatch:  # Allows manual triggering
+
 jobs:
   deploy-adf:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      
     - name: Set up Azure CLI
       run: |
         curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
         az --version
+        
     - name: Login to Azure
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
     - name: Validate ARM Template
-      uses: azure/arm-deploy@v1
-      with:
-        scope: "resourcegroup"
-        resourceGroupName: ${{ secrets.ADF_RESOURCE_GROUP }}
-        template: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json"
-        parameters: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateParametersForFactory.json"
-        additional-parameters: factoryName=${{ secrets.ADF_NAME_UAT }}
-        deployment-mode: Validate
-    - name: Deploy ADF ARM Template
+      id: validate
       uses: azure/arm-deploy@v1
       with:
         scope: "resourcegroup"
@@ -35,4 +32,39 @@ jobs:
         parameters: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateParametersForFactory.json"
         additional-parameters: >
           factoryName=${{ secrets.ADF_NAME_UAT }}
-        deployment-mode: Incremental
+        deploymentMode: Validate
+      
+    - name: Check ARM Template Parameters
+      run: |
+        echo "Checking ARM template parameters file content..."
+        cat ./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateParametersForFactory.json
+        echo "Preparing for deployment to UAT environment..."
+    
+    - name: Deploy ADF ARM Template
+      id: deploy
+      uses: azure/arm-deploy@v1
+      with:
+        scope: "resourcegroup"
+        resourceGroupName: ${{ secrets.ADF_RESOURCE_GROUP }}
+        template: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json"
+        parameters: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateParametersForFactory.json"
+        additional-parameters: >
+          factoryName=${{ secrets.ADF_NAME_UAT }}
+          environment=UAT
+        deploymentMode: Incremental
+        
+    - name: Check Deployment Status
+      run: |
+        echo "Deployment status: ${{ steps.deploy.outputs.status }}"
+        if [ "${{ steps.deploy.outputs.status }}" != "Succeeded" ]; then
+          echo "Deployment failed or had issues. Checking deployment operation..."
+          DEPLOYMENT_NAME="${{ steps.deploy.outputs.deploymentName }}"
+          az deployment group show --name $DEPLOYMENT_NAME --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} --query properties.error
+          exit 1
+        fi
+        
+    - name: Verify ADF Resources
+      run: |
+        echo "Verifying ADF resources were deployed correctly..."
+        az datafactory pipeline list --factory-name ${{ secrets.ADF_NAME_UAT }} --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} --query "[].name" -o tsv
+        echo "Deployment to UAT completed successfully."
