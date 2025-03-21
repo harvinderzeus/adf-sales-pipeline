@@ -1,13 +1,5 @@
 {
 	"name": "SalesPipelineFactoryDev",
-	"properties": {
-		"globalParameters": {
-			"databricks_dev": {
-				"type": "string",
-				"value": "/Workspace/Users/harvinder.singh@zeussolutionsinc.com/Data_manipulation/test-api-log-analytics"
-			}
-		}
-	},
 	"location": "eastus",
 	"identity": {
 		"type": "SystemAssigned",
