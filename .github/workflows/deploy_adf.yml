@@ -55,19 +55,24 @@ jobs:
         echo "Checking if UAT factory name is properly set:"
         echo "UAT factory name: ${{ secrets.ADF_NAME_UAT }}"
 
-    # Deploy using Azure CLI with parameters file
+
+          
+    # Deploy using Azure CLI
     - name: Deploy ADF ARM Template
       run: |
         echo "Starting deployment to UAT..."
         DEPLOYMENT_NAME="ADF-UAT-Deployment-${{ github.run_id }}"
-        
-        # Deploy using Azure CLI
+    
+        # Deploy using Azure CLI - passing parameters directly instead of using the parameters file
         az deployment group create \
-          --name "$DEPLOYMENT_NAME" \
-          --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
-          --template-file "./SalesPipelineFactoryDev/ARMTemplateForFactory.json" \
-          --parameters "@./UAT_ARMTemplateParameters.json" \
-          --verbose
+           --name "$DEPLOYMENT_NAME" \
+           --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
+           --template-file "./SalesPipelineFactoryDev/ARMTemplateForFactory.json" \
+           --parameters factoryName="${{ secrets.ADF_NAME_UAT }}" \
+                   dataFactory_location="eastus" \
+                   dataFactory_identity_type="SystemAssigned" \
+           --verbose      
+          
         
     - name: Check Deployment Status
       run: |
