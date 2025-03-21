@@ -17,6 +17,15 @@ jobs:
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: Validate ARM Template
+      uses: azure/arm-deploy@v1
+      with:
+        scope: "resourcegroup"
+        resourceGroupName: ${{ secrets.ADF_RESOURCE_GROUP }}
+        template: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json"
+        parameters: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateParametersForFactory.json"
+        additional-parameters: factoryName=${{ secrets.ADF_NAME_UAT }}
+        deployment-mode: Validate
     - name: Deploy ADF ARM Template
       uses: azure/arm-deploy@v1
       with:
