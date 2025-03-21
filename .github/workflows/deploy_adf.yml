@@ -1,15 +1,15 @@
-    name: Deploy ADF from Dev to UAT
+name: Deploy ADF from Dev to UAT
 
 on:
   push:
     branches:
-      - develop  # Trigger deployment when code is pushed to main
+      - develop# Trigger deployment when code is pushed to the main branch
 
 jobs:
   deploy-adf:
     runs-on: ubuntu-latest
+
     steps:
-    
     - name: Checkout Repository
       uses: actions/checkout@v4
 
