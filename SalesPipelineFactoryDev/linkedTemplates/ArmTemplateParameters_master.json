@@ -7,6 +7,12 @@
 		},
 		"AzureBlobStorage_connectionString": {
 			"value": ""
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
 		}
 	}
 }
