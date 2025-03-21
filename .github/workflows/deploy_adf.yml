@@ -47,6 +47,6 @@ jobs:
         run: |
           az deployment group create \
           --name adfuat${{ github.run_id }} \
-          --resource-group ${{ secrets.RESOURCE_GROUP_UAT }} \
+          --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} \
           --template-file ./uat-deployment/ARMTemplateForFactory.json \
           --parameters ./uat-deployment/ARMTemplateParametersForFactory.json
