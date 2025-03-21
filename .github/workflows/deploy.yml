@@ -11,7 +11,7 @@ on:
 jobs:
   deploy-to-uat:
     runs-on: ubuntu-latest
-    environment: UAT
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
