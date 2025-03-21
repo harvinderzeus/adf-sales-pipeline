@@ -128,3 +128,4 @@ EOF
           --query "[].name" -o tsv 
         
         echo "Deployment to UAT completed successfully."
+        
