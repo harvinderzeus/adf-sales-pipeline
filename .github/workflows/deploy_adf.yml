@@ -21,7 +21,7 @@ jobs:
       uses: azure/arm-deploy@v1
       with:
         scope: "resourcegroup"
-        resource-group: ${{ secrets.ADF_RESOURCE_GROUP }}
+        resourceGroupName: ${{ secrets.ADF_RESOURCE_GROUP }}
         template: "./adf_publish/ARMTemplateForFactory.json"
         parameters: "./adf_publish/ARMTemplateParametersForFactory.json"
         additional-parameters: >
