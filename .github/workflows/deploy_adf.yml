@@ -1,130 +1,52 @@
-name: Deploy ADF from Dev to UAT
+name: Deploy ADF to UAT
 on:
   push:
-    branches:
-      - develop
-  workflow_dispatch:  # Allows manual triggering
+    branches: [develop]
+  workflow_dispatch:
 
 jobs:
-  deploy-adf:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       
-    - name: Set up Azure CLI
-      run: |
-        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-        az --version
-        
-    - name: Login to Azure
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-    
-    - name: Check ARM Template Files
-      run: |
-        echo "Looking for ARM template files..."
-        find . -name "*ARMTemplate*.json" -type f
-        
-        # Check if the expected files exist
-        if [ ! -f "./SalesPipelineFactoryDev/ARMTemplateForFactory.json" ]; then
-          echo "Error: Factory ARM template not found"
-          exit 1
-        fi
-        
-        if [ ! -f "./SalesPipelineFactoryDev/ARMTemplateParametersForFactory.json" ]; then
-          echo "Error: Factory parameters file not found"
-          exit 1
-        fi
-    
-    - name: Modify ARM Templates for UAT
-      run: |
-        echo "Modifying ARM templates for UAT deployment..."
-        
-        # Make a copy of the original files
-        mkdir -p ./UAT_Deployment
-        cp ./SalesPipelineFactoryDev/ARMTemplateForFactory.json ./UAT_Deployment/
-        cp ./SalesPipelineFactoryDev/ARMTemplateParametersForFactory.json ./UAT_Deployment/
-        
-        # Replace factory name in the main template (if needed)
-        sed -i 's/SalesPipelineFactoryDev/SalesPipelineFactoryUAT/g' ./UAT_Deployment/ARMTemplateForFactory.json
-        
-        # Create/update parameters file for UAT
-        cat > ./UAT_Deployment/ARMTemplateParametersForFactory.json << EOF
-{
-  "\$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": {
-    "factoryName": {
-      "value": "SalesPipelineFactoryUAT"
-    },
-    "dataFactory_location": {
-      "value": "eastus"
-    },
-    "dataFactory_identity_type": {
-      "value": "SystemAssigned"
-    }
-  }
-}
-EOF
-        
-        echo "Template and parameters after modification:"
-        echo "====== Template ======"
-        grep -A 5 -B 5 "SalesPipelineFactoryUAT" ./UAT_Deployment/ARMTemplateForFactory.json || echo "Factory name not found in expected format"
-        echo "====== Parameters ======"
-        cat ./UAT_Deployment/ARMTemplateParametersForFactory.json
-
-    - name: Deploy ADF ARM Template
-      run: |
-        echo "Starting deployment to UAT..."
-        DEPLOYMENT_NAME="ADF-UAT-Deployment-${{ github.run_id }}"
-        
-        # Deploy using Azure CLI
-        az deployment group create \
-          --name "$DEPLOYMENT_NAME" \
-          --resource-group "${{ secrets.RESOURCE_GROUP_UAT }}" \
-          --template-file "./UAT_Deployment/ARMTemplateForFactory.json" \
-          --parameters "./UAT_Deployment/ARMTemplateParametersForFactory.json" \
-          --verbose
-        
-    - name: Check Deployment Status
-      run: |
-        DEPLOYMENT_NAME="ADF-UAT-Deployment-${{ github.run_id }}"
-        echo "Checking deployment status for $DEPLOYMENT_NAME..."
-        
-        DEPLOYMENT_STATUS=$(az deployment group show \
-          --name "$DEPLOYMENT_NAME" \
-          --resource-group "${{ secrets.RESOURCE_GROUP_UAT }}" \
-          --query "properties.provisioningState" -o tsv)
-        
-        echo "Deployment status: $DEPLOYMENT_STATUS"
-        
-        if [ "$DEPLOYMENT_STATUS" != "Succeeded" ]; then
-          echo "Deployment failed. Getting error details..."
-          az deployment group show \
-            --name "$DEPLOYMENT_NAME" \
-            --resource-group "${{ secrets.RESOURCE_GROUP_UAT }}" \
-            --query "properties.error" -o json
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
           
-          echo "Checking individual operations for more details..."
-          az deployment operation list \
-            --resource-group "${{ secrets.RESOURCE_GROUP_UAT }}" \
-            --deployment-name "$DEPLOYMENT_NAME" \
-            --query "[?properties.provisioningState=='Failed'].{operation: properties.targetResource.resourceType, resourceName: properties.targetResource.resourceName, error: properties.statusMessage}" \
-            -o json
+      - name: Install Azure CLI
+        run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      
+      - name: Prepare Templates for UAT
+        run: |
+          # Create a directory for UAT deployment
+          mkdir -p uat-deployment
           
-          exit 1
-        fi
-        
-    - name: Verify ADF Resources
-      if: success()
-      run: |
-        echo "Verifying ADF resources were deployed correctly..."
-        echo "Listing pipelines in UAT factory: SalesPipelineFactoryUAT"
-        az datafactory pipeline list \
-          --factory-name "SalesPipelineFactoryUAT" \
-          --resource-group "${{ secrets.RESOURCE_GROUP_UAT }}" \
-          --query "[].name" -o tsv 
-        
-        echo "Deployment to UAT completed successfully."
+          # Copy both the template and parameters files
+          cp ./SalesPipelineFactoryDev/ARMTemplateForFactory.json ./uat-deployment/
+          cp ./SalesPipelineFactoryDev/ARMTemplateParametersForFactory.json ./uat-deployment/
+          
+          # Update template - change the default value in the factoryName parameter
+          sed -i 's/"defaultValue": "SalesPipelineFactoryDev"/"defaultValue": "SalesPipelineFactoryUAT"/g' ./uat-deployment/ARMTemplateForFactory.json
+          
+          # Update any other occurrences of the factory name in the template
+          sed -i 's/SalesPipelineFactoryDev/SalesPipelineFactoryUAT/g' ./uat-deployment/ARMTemplateForFactory.json
+          
+          # Update parameters file - change the factoryName parameter value
+          sed -i 's/"value": "SalesPipelineFactoryDev"/"value": "SalesPipelineFactoryUAT"/g' ./uat-deployment/ARMTemplateParametersForFactory.json
+          
+          # Verify changes
+          echo "Template factoryName changes:"
+          grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateForFactory.json
+          
+          echo "Parameters file factoryName changes:"
+          grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateParametersForFactory.json
+      
+      - name: Deploy to UAT
+        run: |
+          az deployment group create \
+          --name adfuat${{ github.run_id }} \
+          --resource-group ${{ secrets.RESOURCE_GROUP_UAT }} \
+          --template-file ./uat-deployment/ARMTemplateForFactory.json \
+          --parameters ./uat-deployment/ARMTemplateParametersForFactory.json
