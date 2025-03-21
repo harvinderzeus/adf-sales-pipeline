@@ -21,7 +21,19 @@ jobs:
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    # Create a modified parameters file for UAT
+    - name: Prepare UAT Parameters
+      run: |
+        # Copy the original parameter file
+        cp ./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateParametersForFactory.json ./UAT_ARMTemplateParameters.json
         
+        # Use jq to update the factoryName parameter for UAT
+        jq '.parameters.factoryName.value = "${{ secrets.ADF_NAME_UAT }}"' ./UAT_ARMTemplateParameters.json > ./temp.json && mv ./temp.json ./UAT_ARMTemplateParameters.json
+        
+        echo "Modified parameters file for UAT:"
+        cat ./UAT_ARMTemplateParameters.json
+      
     - name: Validate ARM Template
       id: validate
       uses: azure/arm-deploy@v1
@@ -29,41 +41,35 @@ jobs:
         scope: "resourcegroup"
         resourceGroupName: ${{ secrets.ADF_RESOURCE_GROUP }}
         template: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json"
-        parameters: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateParametersForFactory.json"
-        additional-parameters: >
-          factoryName=${{ secrets.ADF_NAME_UAT }}
+        parameters: "./UAT_ARMTemplateParameters.json"
         deploymentMode: Validate
-      
-    - name: Check ARM Template Parameters
-      run: |
-        echo "Checking ARM template parameters file content..."
-        cat ./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateParametersForFactory.json
-        echo "Preparing for deployment to UAT environment..."
+        failOnStdErr: false
     
     - name: Deploy ADF ARM Template
-      id: deploy
       uses: azure/arm-deploy@v1
       with:
         scope: "resourcegroup"
         resourceGroupName: ${{ secrets.ADF_RESOURCE_GROUP }}
         template: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json"
-        parameters: "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateParametersForFactory.json"
-        additional-parameters: >
-          factoryName=${{ secrets.ADF_NAME_UAT }}
-          environment=UAT
+        parameters: "./UAT_ARMTemplateParameters.json"
+        deploymentName: "ADF-UAT-Deployment-${{ github.run_id }}"
         deploymentMode: Incremental
+        failOnStdErr: false
         
     - name: Check Deployment Status
       run: |
-        echo "Deployment status: ${{ steps.deploy.outputs.status }}"
-        if [ "${{ steps.deploy.outputs.status }}" != "Succeeded" ]; then
+        DEPLOYMENT_NAME="ADF-UAT-Deployment-${{ github.run_id }}"
+        DEPLOYMENT_STATUS=$(az deployment group show --name "$DEPLOYMENT_NAME" --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} --query "properties.provisioningState" -o tsv)
+        
+        echo "Deployment status: $DEPLOYMENT_STATUS"
+        if [ "$DEPLOYMENT_STATUS" != "Succeeded" ]; then
           echo "Deployment failed or had issues. Checking deployment operation..."
-          DEPLOYMENT_NAME="${{ steps.deploy.outputs.deploymentName }}"
-          az deployment group show --name $DEPLOYMENT_NAME --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} --query properties.error
+          az deployment group show --name "$DEPLOYMENT_NAME" --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} --query "properties.error" -o json
           exit 1
         fi
         
     - name: Verify ADF Resources
+      if: success()
       run: |
         echo "Verifying ADF resources were deployed correctly..."
         az datafactory pipeline list --factory-name ${{ secrets.ADF_NAME_UAT }} --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} --query "[].name" -o tsv
