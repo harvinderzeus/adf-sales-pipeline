@@ -12,6 +12,7 @@ on:
     paths:
       - 'adf/**'
   workflow_dispatch:
+  
 
 jobs:
   validate-and-build:
