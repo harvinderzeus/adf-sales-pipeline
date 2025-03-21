@@ -5,14 +5,11 @@
         "factoryName": {
             "value": "SalesPipelineFactoryDev"
         },
-        "AzureBlobStorage_connectionString": {
-            "value": ""
+        "dataFactory_location": {
+            "value": "eastus"
         },
-        "containerUri": {
-            "value": ""
-        },
-        "containerSasToken": {
-            "value": ""
+        "dataFactory_identity_type": {
+            "value": "SystemAssigned"
         }
     }
 }
