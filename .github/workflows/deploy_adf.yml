@@ -108,6 +108,6 @@ jobs:
         az datafactory pipeline list \
           --factory-name "SalesPipelineFactoryUAT" \
           --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
-          --query "[].name" -o tsv
+          --query "[].name" -o tsv 
         
         echo "Deployment to UAT completed successfully."
