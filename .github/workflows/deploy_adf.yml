@@ -26,7 +26,7 @@ jobs:
     - name: Check ARM Template Content
       run: |
         echo "Examining ARM template content..."
-        grep -r "factoryName" ./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json || echo "factoryName not found in template"
+        grep -r "factoryName" ./SalesPipelineFactoryDev/ARMTemplateForFactory.json || echo "factoryName not found in template"
     
     # Create a modified parameters file for UAT without using jq
     - name: Prepare UAT Parameters
@@ -55,7 +55,7 @@ jobs:
         echo "Checking if UAT factory name is properly set:"
         echo "UAT factory name: ${{ secrets.ADF_NAME_UAT }}"
 
-    # Deploy using Azure CLI directly for more control
+    # Deploy using Azure CLI with parameters file
     - name: Deploy ADF ARM Template
       run: |
         echo "Starting deployment to UAT..."
@@ -65,10 +65,8 @@ jobs:
         az deployment group create \
           --name "$DEPLOYMENT_NAME" \
           --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
-          --template-file "./SalesPipelineFactoryDev/factory/SalesPipelineFactoryDev_ARMTemplateForFactory.json" \
-          --parameters factoryName="${{ secrets.ADF_NAME_UAT }}" \
-                       dataFactory_location="eastus" \
-                       dataFactory_identity_type="SystemAssigned" \
+          --template-file "./SalesPipelineFactoryDev/ARMTemplateForFactory.json" \
+          --parameters "@./UAT_ARMTemplateParameters.json" \
           --verbose
         
     - name: Check Deployment Status
@@ -106,7 +104,7 @@ jobs:
         echo "Verifying ADF resources were deployed correctly..."
         echo "Listing pipelines in UAT factory: ${{ secrets.ADF_NAME_UAT }}"
         az datafactory pipeline list \
-          --factory-name "SalesPipelineFactoryUAT" \
+          --factory-name "${{ secrets.ADF_NAME_UAT }}" \
           --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
           --query "[].name" -o tsv 
         
