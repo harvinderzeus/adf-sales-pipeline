@@ -1,0 +1,56 @@
+name: Build ADF Pipeline
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'adf/**'
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - 'adf/**'
+  workflow_dispatch:
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Create parameters file
+        run: |
+          mkdir -p arm-templates
+          cat > arm-templates/parameters.json << EOF_NESTED
+          {
+            "\$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+            "contentVersion": "1.0.0.0",
+            "parameters": {
+              "factoryName": {
+                "value": "SalesPipelineFactoryDev"
+              },
+              "AzureBlobStorage_connectionString": {
+                "value": "DefaultEndpointsProtocol=https;AccountName=${{ secrets.STORAGE_ACCOUNT_NAME }};AccountKey=${{ secrets.STORAGE_ACCOUNT_KEY }};EndpointSuffix=core.windows.net"
+              }
+            }
+          }
+          EOF_NESTED
+
+      - name: Export ARM Templates
+        run: |
+          az datafactory export --factory-name "SalesPipelineFactoryDev" \
+            --resource-group "SalesPipelineRG" \
+            --output-folder "arm-templates"
+
+      - name: Archive ARM Templates
+        uses: actions/upload-artifact@v3
+        with:
+          name: arm-templates
+          path: arm-templates/
