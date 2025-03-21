@@ -10,22 +10,6 @@
 		"AzureBlobStorage_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage'"
-		},
-		"AzureDataLakeStorage_accountKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'accountKey' of 'AzureDataLakeStorage'"
-		},
-		"AzureDatabricks_accessToken": {
-			"type": "secureString",
-			"metadata": "Secure string for 'accessToken' of 'AzureDatabricks'"
-		},
-		"AzureDataLakeStorage_properties_typeProperties_url": {
-			"type": "string",
-			"defaultValue": "https://salespipelinestore.dfs.core.windows.net/"
-		},
-		"AzureDatabricks_properties_typeProperties_existingClusterId": {
-			"type": "string",
-			"defaultValue": "0219-202157-764sufoc"
 		}
 	},
 	"variables": {
@@ -46,42 +30,32 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/AzureDataLakeStorage')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"name": "[concat(parameters('factoryName'), '/SinkParquetDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage",
+					"type": "LinkedServiceReference"
+				},
 				"annotations": [],
-				"type": "AzureBlobFS",
+				"type": "Parquet",
 				"typeProperties": {
-					"url": "[parameters('AzureDataLakeStorage_properties_typeProperties_url')]",
-					"accountKey": {
-						"type": "SecureString",
-						"value": "[parameters('AzureDataLakeStorage_accountKey')]"
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/AzureDatabricks')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureDatabricks",
-				"typeProperties": {
-					"domain": "https://adb-1883699785453254.14.azuredatabricks.net",
-					"accessToken": {
-						"type": "SecureString",
-						"value": "[parameters('AzureDatabricks_accessToken')]"
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "processed",
+						"container": "sales-pipeline"
 					},
-					"existingClusterId": "[parameters('AzureDatabricks_properties_typeProperties_existingClusterId')]"
-				}
+					"compressionCodec": "snappy"
+				},
+				"schema": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage')]"
+			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/SourceCSVFiles')]",
+			"name": "[concat(parameters('factoryName'), '/SourceCSVDataset')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -99,100 +73,27 @@
 					},
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
-					"firstRowAsHeader": false,
+					"firstRowAsHeader": true,
 					"quoteChar": "\""
 				},
-				"schema": [
-					{
-						"type": "String"
-					},
-					{
-						"type": "String"
-					},
-					{
-						"type": "String"
-					},
-					{
-						"type": "String"
-					},
-					{
-						"type": "String"
-					},
-					{
-						"type": "String"
-					}
-				]
+				"schema": []
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/mergedCSV')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "AzureDataLakeStorage",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "DelimitedText",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"fileName": "sales_merged.csv",
-						"folderPath": "merged",
-						"fileSystem": "sales-pipeline"
-					},
-					"columnDelimiter": ",",
-					"escapeChar": "\\",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
-				},
-				"schema": [
-					{
-						"name": "Order ID",
-						"type": "String"
-					},
-					{
-						"name": "Product",
-						"type": "String"
-					},
-					{
-						"name": "Quantity Ordered",
-						"type": "String"
-					},
-					{
-						"name": "Price Each",
-						"type": "String"
-					},
-					{
-						"name": "Order Date",
-						"type": "String"
-					},
-					{
-						"name": "Purchase Address",
-						"type": "String"
-					}
-				]
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/AzureDataLakeStorage')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Sales_pipeline')]",
+			"name": "[concat(parameters('factoryName'), '/CSV_to_Parquet_Pipeline')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"activities": [
 					{
-						"name": "GetCSVFiles",
-						"type": "Copy",
+						"name": "Get CSV Files",
+						"type": "GetMetadata",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.12:00:00",
+							"timeout": "7.00:00:00",
 							"retry": 0,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
@@ -200,97 +101,116 @@
 						},
 						"userProperties": [],
 						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"wildcardFolderPath": "raw",
-									"wildcardFileName": "*.csv",
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings",
-									"copyBehavior": "MergeFiles"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".csv"
-								}
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "SourceCSVFiles",
+							"dataset": {
+								"referenceName": "SourceCSVDataset",
 								"type": "DatasetReference",
 								"parameters": {}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"wildcardFileName": "*.csv"
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
 							}
-						],
-						"outputs": [
-							{
-								"referenceName": "mergedCSV",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
+						}
 					},
 					{
-						"name": "sample_databricks",
-						"type": "DatabricksNotebook",
+						"name": "ForEach CSV File",
+						"type": "ForEach",
 						"dependsOn": [
 							{
-								"activity": "GetCSVFiles",
+								"activity": "Get CSV Files",
 								"dependencyConditions": [
 									"Succeeded"
 								]
 							}
 						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
-							"notebookPath": {
-								"value": "@pipeline().globalParameters.databricks_dev",
+							"items": {
+								"value": "@activity('Get CSV Files').output.childItems",
 								"type": "Expression"
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "AzureDatabricks",
-							"type": "LinkedServiceReference"
+							},
+							"activities": [
+								{
+									"name": "Copy CSV to Parquet",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": true,
+												"wildcardFileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "ParquetSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings",
+												"copyBehavior": "PreserveHierarchy"
+											},
+											"formatSettings": {
+												"type": "ParquetWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "SourceCSVDataset",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "SinkParquetDataset",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								}
+							]
 						}
 					}
 				],
-				"concurrency": 1,
 				"policy": {
 					"elapsedTimeMetric": {}
 				},
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/SourceCSVFiles')]",
-				"[concat(variables('factoryId'), '/datasets/mergedCSV')]",
-				"[concat(variables('factoryId'), '/linkedServices/AzureDatabricks')]"
+				"[concat(variables('factoryId'), '/datasets/SourceCSVDataset')]",
+				"[concat(variables('factoryId'), '/datasets/SinkParquetDataset')]"
 			]
 		}
 	]
