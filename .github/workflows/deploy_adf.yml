@@ -106,7 +106,7 @@ jobs:
         echo "Verifying ADF resources were deployed correctly..."
         echo "Listing pipelines in UAT factory: ${{ secrets.ADF_NAME_UAT }}"
         az datafactory pipeline list \
-          --factory-name "${{ secrets.ADF_NAME_UAT }}" \
+          --factory-name "SalesPipelineFactoryUAT" \
           --resource-group "${{ secrets.ADF_RESOURCE_GROUP }}" \
           --query "[].name" -o tsv
         
