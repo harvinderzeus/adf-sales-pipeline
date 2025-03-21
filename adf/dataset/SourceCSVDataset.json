@@ -11,7 +11,7 @@
         "typeProperties": {
             "location": {
                 "type": "AzureBlobStorageLocation",
-                "container": "sales_pipeline",
+                "container": "sales-pipeline",
                 "folderPath": "raw"
             },
             "columnDelimiter": ",",
