@@ -1,0 +1,9 @@
+{
+	"name": "SalesPipelineFactoryDev",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "b1a627a8-6867-435d-8813-d4581e676617",
+		"tenantId": "8b7673ea-a523-4f15-9c47-133ffdedbddc"
+	}
+}
