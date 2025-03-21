@@ -1,21 +1,21 @@
 {
-    "name": "SinkParquetDataset",
-    "type": "Microsoft.DataFactory/factories/datasets",
-    "properties": {
-        "linkedServiceName": {
-            "referenceName": "AzureBlobStorage",
-            "type": "LinkedServiceReference"
-        },
-        "annotations": [],
-        "type": "Parquet",
-        "typeProperties": {
-            "location": {
-                "type": "AzureBlobStorageLocation",
-                "container": "sales_pipeline",
-                "folderPath": "processed"
-            },
-            "compressionCodec": "snappy"
-        },
-        "schema": []
-    }
+	"name": "SinkParquetDataset",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureBlobStorage",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"folderPath": "processed",
+				"container": "sales-pipeline"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
 }
