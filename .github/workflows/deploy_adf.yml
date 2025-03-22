@@ -1,0 +1,52 @@
+name: Deploy ADF to UAT
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Install Azure CLI
+        run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      
+      - name: Prepare Templates for UAT
+        run: |
+          # Create a directory for UAT deployment
+          mkdir -p uat-deployment
+          
+          # Copy both the template and parameters files
+          cp ./SalesPipelineFactoryDev/ARMTemplateForFactory.json ./uat-deployment/
+          cp ./SalesPipelineFactoryDev/ARMTemplateParametersForFactory.json ./uat-deployment/
+          
+          # Update template - change the default value in the factoryName parameter
+          sed -i 's/"defaultValue": "SalesPipelineFactoryDev"/"defaultValue": "SalesPipelineFactoryUAT"/g' ./uat-deployment/ARMTemplateForFactory.json
+          
+          # Update any other occurrences of the factory name in the template
+          sed -i 's/SalesPipelineFactoryDev/SalesPipelineFactoryUAT/g' ./uat-deployment/ARMTemplateForFactory.json
+          
+          # Update parameters file - change the factoryName parameter value
+          sed -i 's/"value": "SalesPipelineFactoryDev"/"value": "SalesPipelineFactoryUAT"/g' ./uat-deployment/ARMTemplateParametersForFactory.json
+          
+          # Verify changes
+          echo "Template factoryName changes:"
+          grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateForFactory.json
+          
+          echo "Parameters file factoryName changes:"
+          grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateParametersForFactory.json
+      
+      - name: Deploy to UAT
+        run: |
+          az deployment group create \
+          --name adfuat${{ github.run_id }} \
+          --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} \
+          --template-file ./uat-deployment/ARMTemplateForFactory.json \
+          --parameters ./uat-deployment/ARMTemplateParametersForFactory.json
