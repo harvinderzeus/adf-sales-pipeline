@@ -89,6 +89,7 @@
 											"storeSettings": {
 												"type": "AzureBlobStorageReadSettings",
 												"recursive": true,
+												"wildcardFolderPath": "raw",
 												"wildcardFileName": {
 													"value": "@item().name",
 													"type": "Expression"
@@ -140,7 +141,8 @@
 				"policy": {
 					"elapsedTimeMetric": {}
 				},
-				"annotations": []
+				"annotations": [],
+				"lastPublishTime": "2025-03-21T17:55:45Z"
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/SourceCSVDataset')]",
