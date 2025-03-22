@@ -1,0 +1,25 @@
+{
+	"name": "Mapping Data Flow",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "SinkParquetDataset",
+						"type": "DatasetReference"
+					},
+					"name": "CSVSource"
+				}
+			],
+			"sinks": [],
+			"transformations": [],
+			"scriptLines": [
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> CSVSource"
+			]
+		}
+	}
+}
