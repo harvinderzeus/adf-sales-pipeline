@@ -10,7 +10,7 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"fileName": "sales_merged",
+				"fileName": "sales_merged.csv",
 				"folderPath": "merged",
 				"fileSystem": "sales-pipeline"
 			},
