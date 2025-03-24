@@ -10,7 +10,8 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"folderPath": "processed",
+				"fileName": "sales_merged",
+				"folderPath": "merged",
 				"fileSystem": "sales-pipeline"
 			},
 			"columnDelimiter": ",",
