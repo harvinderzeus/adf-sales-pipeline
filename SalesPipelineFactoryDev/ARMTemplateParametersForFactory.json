@@ -7,6 +7,12 @@
 		},
 		"AzureBlobStorage_connectionString": {
 			"value": ""
+		},
+		"AzureDataLakeStorage_accountKey": {
+			"value": ""
+		},
+		"AzureDataLakeStorage_properties_typeProperties_url": {
+			"value": "https://salespipelinestore.dfs.core.windows.net/"
 		}
 	}
 }
