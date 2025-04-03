@@ -1,5 +1,13 @@
 {
 	"name": "SalesPipelineFactoryDev",
+	"properties": {
+		"globalParameters": {
+			"databricks_dev": {
+				"type": "string",
+				"value": "/Users/harvinder.singh@zeussolutionsinc.com/databricks_project/streaming-bronze-data"
+			}
+		}
+	},
 	"location": "eastus",
 	"identity": {
 		"type": "SystemAssigned",
