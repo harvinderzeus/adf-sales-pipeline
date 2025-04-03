@@ -11,8 +11,14 @@
 		"AzureDataLakeStorage_accountKey": {
 			"value": ""
 		},
+		"AzureDatabricks_accessToken": {
+			"value": ""
+		},
 		"AzureDataLakeStorage_properties_typeProperties_url": {
 			"value": "https://salespipelinestore.dfs.core.windows.net/"
+		},
+		"AzureDatabricks_properties_typeProperties_existingClusterId": {
+			"value": "0219-202157-764sufoc"
 		}
 	}
 }
