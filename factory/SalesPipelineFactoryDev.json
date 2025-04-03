@@ -4,7 +4,7 @@
 		"globalParameters": {
 			"databricks_dev": {
 				"type": "string",
-				"value": "https://adb-1883699785453254.14.azuredatabricks.net/editor/notebooks/3743262428646116?o=1883699785453254#command/7599724854440823"
+				"value": "/Workspace/Users/harvinder.singh@zeussolutionsinc.com/Data_manipulation/test-api-log-analytics"
 			}
 		}
 	},
