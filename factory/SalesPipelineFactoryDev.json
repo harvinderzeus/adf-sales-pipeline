@@ -4,7 +4,7 @@
 		"globalParameters": {
 			"databricks_dev": {
 				"type": "string",
-				"value": "/Users/harvinder.singh@zeussolutionsinc.com/databricks_project/streaming-bronze-data"
+				"value": "https://adb-1883699785453254.14.azuredatabricks.net/editor/notebooks/3743262428646116?o=1883699785453254#command/7599724854440823"
 			}
 		}
 	},
