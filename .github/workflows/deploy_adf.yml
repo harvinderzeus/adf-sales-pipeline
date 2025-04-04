@@ -2,8 +2,9 @@ name: Deploy ADF to UAT
 on:
   push:
     branches: [develop]
+    paths:
+      - 'SalesPipelineFactoryDev/**'
   workflow_dispatch:
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -36,6 +37,25 @@ jobs:
           # Update parameters file - change the factoryName parameter value
           sed -i 's/"value": "SalesPipelineFactoryDev"/"value": "SalesPipelineFactoryUAT"/g' ./uat-deployment/ARMTemplateParametersForFactory.json
           
+          # Update global parameters - change databricks_dev to databricks_UAT and update the path
+          if [ -f "./SalesPipelineFactoryDev/globalParameters/SalesPipelineFactoryDev_GlobalParameters.json" ]; then
+            cp ./SalesPipelineFactoryDev/globalParameters/SalesPipelineFactoryDev_GlobalParameters.json ./uat-deployment/
+            
+            # Replace databricks_dev with databricks_UAT
+            sed -i 's/"databricks_dev"/"databricks_UAT"/g' ./uat-deployment/SalesPipelineFactoryDev_GlobalParameters.json
+            
+            # Replace the databricks path
+            sed -i 's|/Workspace/Users/harvinder\.singh@zeussolutionsinc\.com/Data_manipulation/test-api-log-analytics|/Workspace/Users/harvinder.singh@zeussolutionsinc.com/databricks_project/streaming-bronze-data|g' ./uat-deployment/SalesPipelineFactoryDev_GlobalParameters.json
+            
+            # Rename the global parameters file for UAT
+            mv ./uat-deployment/SalesPipelineFactoryDev_GlobalParameters.json ./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json
+            
+            echo "Global parameters updated for UAT."
+            cat ./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json
+          else
+            echo "Global parameters file not found."
+          fi
+          
           # Verify changes
           echo "Template factoryName changes:"
           grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateForFactory.json
@@ -45,8 +65,18 @@ jobs:
       
       - name: Deploy to UAT
         run: |
+          # Deploy the data factory
           az deployment group create \
           --name adfuat${{ github.run_id }} \
           --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} \
           --template-file ./uat-deployment/ARMTemplateForFactory.json \
           --parameters ./uat-deployment/ARMTemplateParametersForFactory.json
+          
+          # Update global parameters if the file exists
+          if [ -f "./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json" ]; then
+            echo "Updating global parameters for UAT environment..."
+            az datafactory factory update \
+            --factory-name SalesPipelineFactoryUAT \
+            --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} \
+            --global-parameters @./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json
+          fi
