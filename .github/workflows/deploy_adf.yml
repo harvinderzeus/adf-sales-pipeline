@@ -117,7 +117,7 @@ jobs:
           
           # Update global parameters
           echo "Updating global parameters for UAT environment..."
-          az datafactory factory update \
+          az datafactory update \
           --factory-name SalesPipelineFactoryUAT \
           --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} \
           --global-parameters @./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json
