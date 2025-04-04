@@ -1,5 +1,4 @@
 {
-	
 	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
 	"contentVersion": "1.0.0.0",
 	"parameters": {
@@ -20,6 +19,12 @@
 		},
 		"AzureDatabricks_properties_typeProperties_existingClusterId": {
 			"value": "0219-202157-764sufoc"
+		},
+		"default_properties_databricks_dev_value": {
+			"value": "/Workspace/Users/harvinder.singh@zeussolutionsinc.com/Data_manipulation/test-api-log-analytics"
+		},
+		"default_properties_test_value": {
+			"value": "test"
 		},
 		"containerUri": {
 			"value": ""

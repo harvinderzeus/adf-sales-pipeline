@@ -26,6 +26,14 @@
 		"AzureDatabricks_properties_typeProperties_existingClusterId": {
 			"type": "string",
 			"defaultValue": "0219-202157-764sufoc"
+		},
+		"default_properties_databricks_dev_value": {
+			"type": "string",
+			"defaultValue": "/Workspace/Users/harvinder.singh@zeussolutionsinc.com/Data_manipulation/test-api-log-analytics"
+		},
+		"default_properties_test_value": {
+			"type": "string",
+			"defaultValue": "test"
 		}
 	},
 	"variables": {
@@ -289,6 +297,22 @@
 						"value": "[parameters('AzureDatabricks_accessToken')]"
 					},
 					"existingClusterId": "[parameters('AzureDatabricks_properties_typeProperties_existingClusterId')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/default')]",
+			"type": "Microsoft.DataFactory/factories/globalparameters",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"databricks_dev": {
+					"type": "string",
+					"value": "[parameters('default_properties_databricks_dev_value')]"
+				},
+				"test": {
+					"type": "string",
+					"value": "[parameters('default_properties_test_value')]"
 				}
 			},
 			"dependsOn": []
