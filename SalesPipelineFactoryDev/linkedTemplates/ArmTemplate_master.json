@@ -1,5 +1,4 @@
 {
-	
 	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
 	"contentVersion": "1.0.0.0",
 	"parameters": {
@@ -27,6 +26,14 @@
 		"AzureDatabricks_properties_typeProperties_existingClusterId": {
 			"type": "string",
 			"defaultValue": "0219-202157-764sufoc"
+		},
+		"default_properties_databricks_dev_value": {
+			"type": "string",
+			"defaultValue": "/Workspace/Users/harvinder.singh@zeussolutionsinc.com/Data_manipulation/test-api-log-analytics"
+		},
+		"default_properties_test_value": {
+			"type": "string",
+			"defaultValue": "test"
 		},
 		"containerUri": {
 			"type": "string",
@@ -63,6 +70,12 @@
 					},
 					"AzureDatabricks_accessToken": {
 						"value": "[parameters('AzureDatabricks_accessToken')]"
+					},
+					"default_properties_databricks_dev_value": {
+						"value": "[parameters('default_properties_databricks_dev_value')]"
+					},
+					"default_properties_test_value": {
+						"value": "[parameters('default_properties_test_value')]"
 					},
 					"AzureDataLakeStorage_properties_typeProperties_url": {
 						"value": "[parameters('AzureDataLakeStorage_properties_typeProperties_url')]"

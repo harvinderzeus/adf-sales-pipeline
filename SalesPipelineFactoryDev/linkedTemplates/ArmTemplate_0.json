@@ -19,6 +19,14 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'accessToken' of 'AzureDatabricks'"
 		},
+		"default_properties_databricks_dev_value": {
+			"type": "string",
+			"defaultValue": "/Workspace/Users/harvinder.singh@zeussolutionsinc.com/Data_manipulation/test-api-log-analytics"
+		},
+		"default_properties_test_value": {
+			"type": "string",
+			"defaultValue": "test"
+		},
 		"AzureDataLakeStorage_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://salespipelinestore.dfs.core.windows.net/"
@@ -32,6 +40,22 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/default')]",
+			"type": "Microsoft.DataFactory/factories/globalparameters",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"databricks_dev": {
+					"type": "string",
+					"value": "[parameters('default_properties_databricks_dev_value')]"
+				},
+				"test": {
+					"type": "string",
+					"value": "[parameters('default_properties_test_value')]"
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/AzureBlobStorage')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
