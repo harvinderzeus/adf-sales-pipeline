@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history to ensure we have the file
       
       - name: Azure Login
         uses: azure/login@v1
@@ -18,6 +20,28 @@ jobs:
           
       - name: Install Azure CLI
         run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      
+      - name: Debug File Structure
+        run: |
+          echo "Checking file structure and permissions:"
+          ls -la
+          ls -la SalesPipelineFactoryDev/
+          
+          # Specifically check for globalParameters folder
+          if [ -d "SalesPipelineFactoryDev/globalParameters" ]; then
+            echo "globalParameters directory exists"
+            ls -la SalesPipelineFactoryDev/globalParameters/
+          else
+            echo "globalParameters directory NOT found"
+          fi
+          
+          # Check for the specific file
+          if [ -f "SalesPipelineFactoryDev/globalParameters/SalesPipelineFactoryDev_GlobalParameters.json" ]; then
+            echo "Found global parameters file at expected path"
+            cat SalesPipelineFactoryDev/globalParameters/SalesPipelineFactoryDev_GlobalParameters.json | head -10
+          else
+            echo "Global parameters file NOT found at expected path"
+          fi
       
       - name: Prepare Templates for UAT
         run: |
@@ -37,9 +61,13 @@ jobs:
           # Update parameters file - change the factoryName parameter value
           sed -i 's/"value": "SalesPipelineFactoryDev"/"value": "SalesPipelineFactoryUAT"/g' ./uat-deployment/ARMTemplateParametersForFactory.json
           
-          # Update global parameters - change databricks_dev to databricks_UAT and update the path
-          if [ -f "./SalesPipelineFactoryDev/globalParameters/SalesPipelineFactoryDev_GlobalParameters.json" ]; then
-            cp ./SalesPipelineFactoryDev/globalParameters/SalesPipelineFactoryDev_GlobalParameters.json ./uat-deployment/
+          # Handle global parameters file
+          GLOBAL_PARAMS_PATH="SalesPipelineFactoryDev/globalParameters/SalesPipelineFactoryDev_GlobalParameters.json"
+          if [ -f "$GLOBAL_PARAMS_PATH" ]; then
+            echo "Processing global parameters file..."
+            
+            # Copy to UAT deployment directory
+            cp "$GLOBAL_PARAMS_PATH" ./uat-deployment/
             
             # Replace databricks_dev with databricks_UAT
             sed -i 's/"databricks_dev"/"databricks_UAT"/g' ./uat-deployment/SalesPipelineFactoryDev_GlobalParameters.json
@@ -50,18 +78,31 @@ jobs:
             # Rename the global parameters file for UAT
             mv ./uat-deployment/SalesPipelineFactoryDev_GlobalParameters.json ./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json
             
-            echo "Global parameters updated for UAT."
+            echo "Global parameters updated for UAT:"
             cat ./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json
           else
-            echo "Global parameters file not found."
+            echo "WARNING: Global parameters file not found at: $GLOBAL_PARAMS_PATH"
+            
+            # Create a simple global parameters file if it doesn't exist
+            echo '{
+              "globalParameters": {
+                "databricks_UAT": {
+                  "type": "string",
+                  "value": "/Workspace/Users/harvinder.singh@zeussolutionsinc.com/databricks_project/streaming-bronze-data"
+                }
+              }
+            }' > ./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json
+            
+            echo "Created a simple global parameters file for UAT:"
+            cat ./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json
           fi
           
           # Verify changes
           echo "Template factoryName changes:"
-          grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateForFactory.json
+          grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateForFactory.json || echo "factoryName not found in template"
           
           echo "Parameters file factoryName changes:"
-          grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateParametersForFactory.json
+          grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateParametersForFactory.json || echo "factoryName not found in parameters"
       
       - name: Deploy to UAT
         run: |
@@ -72,11 +113,9 @@ jobs:
           --template-file ./uat-deployment/ARMTemplateForFactory.json \
           --parameters ./uat-deployment/ARMTemplateParametersForFactory.json
           
-          # Update global parameters if the file exists
-          if [ -f "./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json" ]; then
-            echo "Updating global parameters for UAT environment..."
-            az datafactory factory update \
-            --factory-name SalesPipelineFactoryUAT \
-            --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} \
-            --global-parameters @./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json
-          fi
+          # Update global parameters
+          echo "Updating global parameters for UAT environment..."
+          az datafactory factory update \
+          --factory-name SalesPipelineFactoryUAT \
+          --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} \
+          --global-parameters @./uat-deployment/SalesPipelineFactoryUAT_GlobalParameters.json
