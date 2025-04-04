@@ -37,13 +37,14 @@ jobs:
           # Update parameters file - change the factoryName parameter value
           sed -i 's/"value": "SalesPipelineFactoryDev"/"value": "SalesPipelineFactoryUAT"/g' ./uat-deployment/ARMTemplateParametersForFactory.json
           
-          # Update global parameters: rename databricks_dev to databricks_uat
+          # Update global parameters - IMPORTANT: First rename the parameter in the template
+          # Update parameter definition in the ARM template
+          sed -i 's/"default_properties_databricks_dev_value"/"default_properties_databricks_uat_value"/g' ./uat-deployment/ARMTemplateForFactory.json
+          
+          # Then update the global parameter reference
           sed -i 's/"databricks_dev": {/"databricks_uat": {/g' ./uat-deployment/ARMTemplateForFactory.json
           
-          # Update global parameters: rename the parameter reference
-          sed -i 's/"value": "\[parameters('"'"'default_properties_databricks_dev_value'"'"')\]"/"value": "\[parameters('"'"'default_properties_databricks_uat_value'"'"')\]"/g' ./uat-deployment/ARMTemplateForFactory.json
-          
-          # Update parameter value in parameters file
+          # Update parameter name in the parameters file
           sed -i 's/"default_properties_databricks_dev_value": {/"default_properties_databricks_uat_value": {/g' ./uat-deployment/ARMTemplateParametersForFactory.json
           
           # Update the databricks path in parameters file
@@ -52,6 +53,9 @@ jobs:
           # Verify changes
           echo "Template factoryName changes:"
           grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateForFactory.json
+          
+          echo "Parameter definition changes:"
+          grep -A 3 'default_properties_databricks_uat_value' ./uat-deployment/ARMTemplateForFactory.json
           
           echo "Global parameter changes:"
           grep -A 10 'globalparameters' ./uat-deployment/ARMTemplateForFactory.json
