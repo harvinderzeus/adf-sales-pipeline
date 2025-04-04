@@ -1,0 +1,83 @@
+name: Deploy ADF to UAT
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'SalesPipelineFactoryDev/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Install Azure CLI
+        run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      
+      - name: Prepare Templates for UAT
+        run: |
+          # Create a directory for UAT deployment
+          mkdir -p uat-deployment
+          
+          # Copy both the template and parameters files
+          cp ./SalesPipelineFactoryDev/ARMTemplateForFactory.json ./uat-deployment/
+          cp ./SalesPipelineFactoryDev/ARMTemplateParametersForFactory.json ./uat-deployment/
+          
+          # First, display the structure of the template for debugging
+          echo "Checking original template structure..."
+          grep -n "databricks_dev" ./uat-deployment/ARMTemplateForFactory.json
+          grep -n "default_properties_databricks_dev_value" ./uat-deployment/ARMTemplateForFactory.json
+          
+          # Update template - change the default value in the factoryName parameter
+          sed -i 's/"defaultValue": "SalesPipelineFactoryDev"/"defaultValue": "SalesPipelineFactoryUAT"/g' ./uat-deployment/ARMTemplateForFactory.json
+          
+          # Update any other occurrences of the factory name in the template
+          sed -i 's/SalesPipelineFactoryDev/SalesPipelineFactoryUAT/g' ./uat-deployment/ARMTemplateForFactory.json
+          
+          # Update parameters file - change the factoryName parameter value
+          sed -i 's/"value": "SalesPipelineFactoryDev"/"value": "SalesPipelineFactoryUAT"/g' ./uat-deployment/ARMTemplateParametersForFactory.json
+          
+          # The comprehensive approach - handle ALL occurrences of the parameter:
+          # 1. Keep the original parameter for backwards compatibility
+          # 2. Add the new parameter definition to the ARM template
+          
+          # Extract the parameter section first to understand its structure
+          echo "Examining parameters section..."
+          grep -A 10 "parameters" ./uat-deployment/ARMTemplateForFactory.json | head -20
+          
+          # Update the globalParameters section in the ARM template
+          sed -i 's/"databricks_dev": {/"databricks_uat": {/g' ./uat-deployment/ARMTemplateForFactory.json
+          
+          # Fix the reference in the globalParameters section
+          # Find exactly where value references the parameter
+          sed -i 's/"\[parameters('"'"'default_properties_databricks_dev_value'"'"')\]"/"\[parameters('"'"'default_properties_databricks_dev_value'"'"')\]"/g' ./uat-deployment/ARMTemplateForFactory.json
+          
+          # Update the parameter value in parameters file BUT keep original parameter name
+          # Instead of renaming, let's change the value directly
+          sed -i 's|/Workspace/Users/harvinder.singh@zeussolutionsinc.com/Data_manipulation/test-api-log-analytics|/Workspace/Users/harvinder.singh@zeussolutionsinc.com/databricks_project/streaming-bronze-data|g' ./uat-deployment/ARMTemplateParametersForFactory.json
+          
+          # Verify changes
+          echo "Template factoryName changes:"
+          grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateForFactory.json
+          
+          echo "Global parameter changes:"
+          grep -A 15 'globalparameters' ./uat-deployment/ARMTemplateForFactory.json
+          
+          echo "Parameters file changes:"
+          grep -A 3 '"factoryName"' ./uat-deployment/ARMTemplateParametersForFactory.json
+          grep -A 3 'default_properties_databricks_dev_value' ./uat-deployment/ARMTemplateParametersForFactory.json
+      
+      - name: Deploy to UAT
+        run: |
+          az deployment group create \
+            --name adfuat${{ github.run_id }} \
+            --resource-group ${{ secrets.ADF_RESOURCE_GROUP }} \
+            --template-file ./uat-deployment/ARMTemplateForFactory.json \
+            --parameters ./uat-deployment/ARMTemplateParametersForFactory.json
